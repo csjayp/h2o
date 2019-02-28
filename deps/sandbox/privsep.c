@@ -74,6 +74,9 @@ static void priv_deliver_neverbleed_sock(int sock)
     struct sockaddr_un sun;
     int error, nb_sock;
 
+    /*
+     * NB: DONT FORGET TO VALIDATE THE NEVERBLEED SOCKET PATH
+     */
     priv_must_read(sock, &sun, sizeof(struct sockaddr_un));
 #ifdef SOCK_CLOEXEC
     nb_sock = socket(PF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
