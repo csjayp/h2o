@@ -15,8 +15,8 @@ and OpenSSH.
 
 ## Credits
 
-The following people wrote/contributed to the OpenSSH prvisep code which we took
-some of the file description transport, and seccomp debugging code:
+The following people wrote/contributed to the OpenSSH prvisep code, where some
+of the file descriptor and transport, and seccomp debugging code was taken from:
 
  * Copyright (c) 2003 Can Erkin Acar
  * Copyright (c) 2003 Anil Madhavapeddy <anil@recoil.org>
