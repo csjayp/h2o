@@ -45,8 +45,7 @@
 
 #include "sandbox.h"
 
-/* Syscall filtering set for preauth. */
-static const struct sock_filter preauth_insns[] = {
+static const struct sock_filter policy_insns[] = {
     /* Ensure the syscall arch convention is as expected. */
     BPF_STMT(BPF_LD+BPF_W+BPF_ABS,
         offsetof(struct seccomp_data, arch)),
@@ -130,8 +129,8 @@ static const struct sock_filter preauth_insns[] = {
 };
 
 static const struct sock_fprog preauth_program = {
-    .len = (unsigned short)(sizeof(preauth_insns)/sizeof(preauth_insns[0])),
-    .filter = (struct sock_filter *)preauth_insns,
+    .len = (unsigned short)(sizeof(policy_insns)/sizeof(policy_insns[0])),
+    .filter = (struct sock_filter *)policy_insns,
 };
 
 static void sandbox_backtrace(void)
