@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <grp.h>
 #include <limits.h>
+#include <netdb.h>
 #include <pthread.h>
 #include <pwd.h>
 #include <stdarg.h>

@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2019 Christian S.J. Peron
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /* Use the kernel headers in case of an older toolchain. */
 # include <asm/siginfo.h>
 # define __have_siginfo_t 1
@@ -6,6 +21,7 @@
 
 #include <execinfo.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/resource.h>
 #include <sys/prctl.h>
 
@@ -18,6 +34,7 @@
 #include <asm/unistd.h>
 
 #include <errno.h>
+#include <netdb.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stddef.h>  /* for offsetof */
@@ -29,7 +46,7 @@
 #include "sandbox.h"
 
 /* Syscall filtering set for preauth. */
-static const struct sock_filter ins[] = {
+static const struct sock_filter preauth_insns[] = {
     /* Ensure the syscall arch convention is as expected. */
     BPF_STMT(BPF_LD+BPF_W+BPF_ABS,
         offsetof(struct seccomp_data, arch)),
@@ -76,6 +93,7 @@ static const struct sock_filter ins[] = {
     SC_ALLOW(__NR_getsockopt),
     SC_ALLOW(__NR_setsockopt),  /* NB: This might be dangerous, we should probably be inspecting args */
     SC_ALLOW(__NR_recvmsg),
+    SC_ALLOW(__NR_recvfrom),
     /*
      * Standard syscalls required to do pretty much anything. similar to seccomp(SECCOMP_SET_MODE_STRICT)
      */
@@ -88,19 +106,32 @@ static const struct sock_filter ins[] = {
      */
     SC_ALLOW(__NR_brk),
     SC_ALLOW(__NR_mmap),
+    SC_ALLOW(__NR_munmap),
     /*
      * h2o is threaded, so we will need futex(2)
      */
     SC_ALLOW(__NR_futex),
+    SC_ALLOW(__NR_rt_sigprocmask),
+    SC_ALLOW(__NR_rt_sigreturn),
+    SC_ALLOW(__NR_tgkill),
+    SC_ALLOW(__NR_rt_sigaction),
+
     /*
      * Deny the execution of all other syscalls.
      */
+    /*
+     * Allow clone() required for reverse proxy code.
+     */
+    SC_ALLOW(__NR_clone),
+    SC_ALLOW(__NR_set_robust_list),
+    SC_ALLOW(__NR_fcntl),   /* need to cntrol the scoping here. */
+
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_FILTER_FAIL),
 };
 
-static const struct sock_fprog prog = {
-    .len = (unsigned short)(sizeof(ins) / sizeof(ins[0])),
-    .filter = (struct sock_filter *)ins,
+static const struct sock_fprog preauth_program = {
+    .len = (unsigned short)(sizeof(preauth_insns)/sizeof(preauth_insns[0])),
+    .filter = (struct sock_filter *)preauth_insns,
 };
 
 static void sandbox_backtrace(void)
@@ -132,7 +163,7 @@ void sandbox_violation(int signum, siginfo_t *info, void *void_context)
         __func__, info->si_arch, info->si_syscall, info->si_call_addr);
     fprintf(stderr, "[seccomp] %s\n", msg);
     raise(SIGQUIT);
-    sandbox_backtrace();
+    //sandbox_backtrace();
     _exit(1);
 }
 
@@ -163,7 +194,7 @@ void sandbox_set(void)
               __func__, strerror(errno));
         abort();
     }
-    if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == -1) {
+    if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &preauth_program) == -1) {
         fprintf(stderr, "%s: prctl(PR_SET_SECCOMP): %s",
               __func__, strerror(errno));
         abort();

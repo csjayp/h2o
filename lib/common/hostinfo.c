@@ -20,6 +20,7 @@
  * IN THE SOFTWARE.
  */
 #include "h2o/hostinfo.h"
+#include "privsep.h"
 
 struct st_h2o_hostinfo_getaddr_req_t {
     h2o_multithread_receiver_t *_receiver;
@@ -54,7 +55,7 @@ static void lookup_and_respond(h2o_hostinfo_getaddr_req_t *req)
 {
     struct addrinfo *res;
 
-    int ret = getaddrinfo(req->_in.name, req->_in.serv, &req->_in.hints, &res);
+    int ret = priv_getaddrinfo(req->_in.name, req->_in.serv, &req->_in.hints, &res);
     req->_out.message = (h2o_multithread_message_t){{NULL}};
     if (ret != 0) {
         req->_out.errstr = gai_strerror(ret);

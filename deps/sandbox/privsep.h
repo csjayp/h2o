@@ -16,9 +16,30 @@
 #ifndef PRIVSEP_DOT_H_
 #define PRIVSEP_DOT_H_
 
+struct priv_getaddrinfo_args {
+    char    hostname[256];
+    char    servname[256];
+    struct addrinfo hints;
+};
+
+struct priv_getaddrinfo_results {
+    int ai_flags;
+    int ai_family;
+    int ai_socktype;
+    int ai_protocol;
+    socklen_t ai_addrlen;
+    struct sockaddr_storage sas;
+    char ai_canonname[256];
+};
+
+/*
+ * List of the privileges that will be used by h2o workers.
+ */
 enum {
     PRIV_NOOP,
-    PRIV_NEVERBLEED_SOCK
+    PRIV_NEVERBLEED_SOCK,
+    PRIV_GETADDRINFO,
+    PRIV_CONNECT_SOCK
 };
 
 int             priv_init(void);
@@ -28,5 +49,8 @@ void            priv_must_write(int, void *, size_t);
 void            priv_send_fd(int, int);
 int             priv_receive_fd(int);
 int             privsep_get_neverbleed_sock(struct sockaddr_un *);
+int             priv_getaddrinfo(const char *, const char *, const struct addrinfo *,
+                  struct addrinfo **res);
+int             priv_connect_sock_noblock(struct sockaddr_storage *);
 
 #endif  /* PRIVSEP_DOT_H_ */
