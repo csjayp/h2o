@@ -2262,6 +2262,7 @@ int main(int argc, char **argv)
     }
 
     fprintf(stderr, "h2o server (pid:%d) is ready to serve requests\n", (int)getpid());
+
     assert(conf.num_threads != 0);
 
     /* start the threads */
