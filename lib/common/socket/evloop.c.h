@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include "cloexec.h"
 #include "h2o/linklist.h"
+#include "privsep.h"
 
 #if !defined(H2O_USE_ACCEPT4)
 #ifdef __linux__
@@ -445,12 +446,24 @@ h2o_socket_t *h2o_socket_connect(h2o_loop_t *loop, struct sockaddr *addr, sockle
 {
     int fd;
     struct st_h2o_evloop_socket_t *sock;
+    struct sockaddr_storage sas;
 
-    if ((fd = cloexec_socket(addr->sa_family, SOCK_STREAM, 0)) == -1)
-        return NULL;
-    fcntl(fd, F_SETFL, O_NONBLOCK);
-    if (!(connect(fd, addr, addrlen) == 0 || errno == EINPROGRESS)) {
-        close(fd);
+    switch (addr->sa_family) {
+    case PF_UNIX:
+        bcopy(addr, &sas, sizeof(struct sockaddr_un));
+        break;
+    case PF_INET:
+        bcopy(addr, &sas, sizeof(struct sockaddr_in));
+        break;
+    case PF_INET6:
+        bcopy(addr, &sas, sizeof(struct sockaddr_in6));
+        break;
+    }
+    /*
+     * NB: for multistep operations we need an array
+     */
+    fd = priv_connect_sock_noblock(&sas);
+    if (fd == -1) {
         return NULL;
     }
 
