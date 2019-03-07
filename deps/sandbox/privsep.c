@@ -345,7 +345,6 @@ void priv_send_fd(int sock, int fd)
     struct iovec vec;
     ssize_t n;
 
-    printf("sending this mutha phucan fd\n");
     memset(&msg, 0, sizeof(msg));
     if (fd < 0) {
         return;
